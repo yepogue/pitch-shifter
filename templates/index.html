@@ -1,309 +1,42 @@
-<!DOCTYPE html>
-<html lang="en">
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Voice Pitch Shifter</title>
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>语音降调助听器</title>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: #f5f7fa;
-            min-height: 100vh;
-            padding: 20px;
-        }
-        
-        .container {
-            background: white;
-            border-radius: 16px;
-            padding: 30px 20px;
-            max-width: 600px;
-            width: 100%;
-            margin: 0 auto;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-        }
-        
-        h1 {
-            color: #2c3e50;
-            margin-bottom: 8px;
-            text-align: center;
-            font-size: 28px;
-            font-weight: 600;
-        }
-        
-        .subtitle {
-            color: #7f8c8d;
-            text-align: center;
-            margin-bottom: 35px;
-            font-size: 18px;
-        }
-        
-        .section {
-            margin-bottom: 30px;
-        }
-        
-        .section-title {
-            color: #2c3e50;
-            font-size: 20px;
-            margin-bottom: 18px;
-            font-weight: 600;
-        }
-        
-        .control-group {
-            margin-bottom: 20px;
-        }
-        
-        label {
-            display: block;
-            color: #34495e;
-            margin-bottom: 12px;
-            font-weight: 500;
-            font-size: 18px;
-        }
-        
-        input[type="range"] {
-            width: 100%;
-            height: 8px;
-            border-radius: 4px;
-            background: #e0e0e0;
-            outline: none;
-            margin-bottom: 15px;
-        }
-        
-        input[type="range"]::-webkit-slider-thumb {
-            -webkit-appearance: none;
-            appearance: none;
-            width: 28px;
-            height: 28px;
-            border-radius: 50%;
-            background: #3498db;
-            cursor: pointer;
-        }
-        
-        input[type="range"]::-moz-range-thumb {
-            width: 28px;
-            height: 28px;
-            border-radius: 50%;
-            background: #3498db;
-            cursor: pointer;
-            border: none;
-        }
-        
-        .value-display {
-            text-align: center;
-            color: #3498db;
-            font-weight: 600;
-            font-size: 22px;
-            margin-top: 10px;
-        }
-        
-        /* 圆形录音按钮 */
-        .record-button-container {
-            display: flex;
-            justify-content: center;
-            gap: 20px;
-            margin: 30px 0;
-        }
-        
-        .btn-circle {
-            width: 120px;
-            height: 120px;
-            border-radius: 50%;
-            border: none;
-            cursor: pointer;
-            transition: opacity 0.2s;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            font-size: 18px;
-            font-weight: 600;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-            padding: 0;
-            line-height: 1.2;
-        }
-        
-        .btn-circle .icon {
-            font-size: 36px;
-            display: block;
-            line-height: 1;
-            margin-bottom: 6px;
-        }
-        
-        .btn-circle span:last-child {
-            display: block;
-            line-height: 1.2;
-        }
-        
-        .btn-circle:active {
-            opacity: 0.8;
-        }
-        
-        #recordBtn {
-            background: #3498db;
-            color: white;
-        }
-        
-        #stopBtn {
-            background: #e74c3c;
-            color: white;
-        }
-        
-        /* 普通按钮 */
-        .btn {
-            width: 100%;
-            padding: 20px;
-            border: none;
-            border-radius: 12px;
-            font-size: 22px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s;
-            margin-bottom: 15px;
-        }
-        
-        .btn-secondary {
-            background: #27ae60;
-            color: white;
-            box-shadow: 0 4px 12px rgba(39, 174, 96, 0.3);
-        }
-        
-        .btn-secondary:active {
-            transform: scale(0.98);
-        }
-        
-        .btn:disabled {
-            background: #bdc3c7;
-            cursor: not-allowed;
-            transform: none;
-            box-shadow: none;
-        }
-        
-        .status {
-            text-align: center;
-            padding: 18px;
-            border-radius: 12px;
-            margin: 20px 0;
-            display: none;
-            font-size: 19px;
-            font-weight: 500;
-        }
-        
-        .status.success {
-            background: #d4edda;
-            color: #155724;
-            display: block;
-        }
-        
-        .status.error {
-            background: #f8d7da;
-            color: #721c24;
-            display: block;
-        }
-        
-        .status.processing {
-            background: #d1ecf1;
-            color: #0c5460;
-            display: block;
-        }
-        
-        .recording-indicator {
-            display: inline-block;
-            width: 12px;
-            height: 12px;
-            background: #e74c3c;
-            border-radius: 50%;
-            margin-right: 8px;
-            animation: pulse 1.5s infinite;
-        }
-        
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.3; }
-        }
-        
-        audio {
-            width: 100%;
-            margin-top: 15px;
-            border-radius: 8px;
-            height: 54px;
-        }
-        
-        /* 单选按钮样式优化 */
-        input[type="radio"] {
-            width: 24px;
-            height: 24px;
-            margin-right: 10px;
-            cursor: pointer;
-        }
-        
-        .control-group label[style] {
-            font-size: 20px;
-            padding: 12px;
-            margin-bottom: 8px;
-        }
-        
-        /* 移动端优化 */
-        @media (max-width: 768px) {
-            body {
-                padding: 10px;
-            }
-            
-            .container {
-                padding: 25px 15px;
-            }
-            
-            h1 {
-                font-size: 26px;
-            }
-            
-            .subtitle {
-                font-size: 17px;
-            }
-            
-            .section-title {
-                font-size: 19px;
-            }
-            
-            label {
-                font-size: 17px;
-            }
-            
-            .value-display {
-                font-size: 20px;
-            }
-            
-            .btn {
-                font-size: 20px;
-                padding: 18px;
-            }
-            
-            .btn-circle {
-                width: 100px;
-                height: 100px;
-                font-size: 16px;
-            }
-            
-            .btn-circle .icon {
-                font-size: 32px;
-            }
-            
-            .status {
-                font-size: 17px;
-            }
-        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f5f7fa; min-height: 100vh; padding: 20px; }
+        .container { background: white; border-radius: 16px; padding: 30px 20px; max-width: 640px; width: 100%; margin: 0 auto; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+        h1 { color: #2c3e50; margin-bottom: 8px; text-align: center; font-size: 28px; font-weight: 600; }
+        .subtitle { color: #7f8c8d; text-align: center; margin-bottom: 30px; font-size: 18px; }
+        .section { margin-bottom: 24px; }
+        .section-title { color: #2c3e50; font-size: 20px; margin-bottom: 14px; font-weight: 600; }
+        label { display: block; color: #2c3e50; margin-bottom: 10px; font-size: 18px; }
+        input[type="range"] { width: 100%; margin: 10px 0 8px 0; }
+        .value-display { text-align: center; color: #2980b9; font-weight: 700; font-size: 22px; margin-top: 4px; }
+        .record-button-container { display: flex; justify-content: center; margin: 12px 0 10px; }
+        .btn-circle { width: 140px; height: 140px; border-radius: 50%; background: linear-gradient(135deg, #ff6b6b, #ff4757); color: white; border: none; font-size: 18px; font-weight: 600; display: flex; flex-direction: column; align-items: center; justify-content: center; box-shadow: 0 10px 25px rgba(255, 99, 132, 0.3); cursor: pointer; transition: transform 0.2s, box-shadow 0.2s; }
+        .btn-circle .icon { font-size: 40px; margin-bottom: 6px; }
+        .btn-circle:active { transform: scale(0.96); box-shadow: 0 6px 15px rgba(255, 99, 132, 0.25); }
+        .btn:disabled { background: #bdc3c7; cursor: not-allowed; box-shadow: none; }
+        .status { text-align: center; padding: 16px; border-radius: 12px; margin: 16px 0; display: none; font-size: 18px; font-weight: 500; }
+        .status.success { background: #d4edda; color: #155724; display: block; }
+        .status.error { background: #f8d7da; color: #721c24; display: block; }
+        .status.processing { background: #d1ecf1; color: #0c5460; display: block; }
+        .status.info { background: #cce5ff; color: #004085; display: block; }
+        audio { width: 100%; margin-top: 12px; border-radius: 8px; height: 54px; }
+        @media (max-width: 768px) { body { padding: 10px; } .container { padding: 22px 14px; } h1 { font-size: 24px; } .subtitle { font-size: 16px; } .section-title { font-size: 18px; } label { font-size: 16px; } .value-display { font-size: 20px; } .btn-circle { width: 120px; height: 120px; font-size: 16px; } .btn-circle .icon { font-size: 32px; } }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>🎤 语音降调助听器</h1>
-        <p class="subtitle">帮助老年人更清晰地听到对话</p>
-        
+        <h1>语音降调助听器</h1>
+        <p class="subtitle">帮助老年人更清晰地听到对话 <span style="font-size:14px;color:#666;">（版本 {{ version }}）</span></p>
+
         <div class="section">
             <div class="section-title">降调调整（相对降低）</div>
             <div class="control-group">
@@ -312,27 +45,22 @@
                 <div class="value-display" id="pitch-description">轻度降低（适合女声）</div>
             </div>
         </div>
-        
-        <div class="section">
-            <div class="section-title">从麦克风录音</div>
+
+        <div class="section" id="recordSection">
+            <div class="section-title">从麦克风录音（单按钮循环录制）</div>
             <div class="record-button-container">
                 <button id="recordBtn" class="btn-circle">
-                    <span class="icon">🎙️</span>
-                    <span>开始录音</span>
-                </button>
-                <button id="stopBtn" class="btn-circle" style="display: none;">
-                    <span class="icon">⏹️</span>
-                    <span>停止录音</span>
+                    <span class="icon">⏺</span>
+                    <span id="recordLabel">开始录音</span>
                 </button>
             </div>
-            <audio id="recordedAudio" controls style="display: none;"></audio>
         </div>
-        
-        <button id="processBtn" class="btn btn-secondary" disabled>✨ 降低声调</button>
-        
+
         <div id="status" class="status"></div>
-        
-        <div id="speedControlSection" class="section" style="display: none;">
+
+        <div id="outputSection" class="section" style="display: none;">
+            <div class="section-title">降调后的音频（自动播放）</div>
+            <audio id="outputAudio" controls autoplay style="width: 100%; margin-bottom: 20px;"></audio>
             <div class="section-title">速度调整（播放时实时调整）</div>
             <div class="control-group">
                 <label>选择播放速度:</label>
@@ -349,122 +77,164 @@
                 </div>
             </div>
         </div>
-        
-        <audio id="outputAudio" controls style="display: none;"></audio>
     </div>
-    
+
     <script>
         let mediaRecorder;
         let audioChunks = [];
         let currentAudioBlob = null;
-        
+
         const recordBtn = document.getElementById('recordBtn');
-        const stopBtn = document.getElementById('stopBtn');
-        const processBtn = document.getElementById('processBtn');
+        const recordLabel = document.getElementById('recordLabel');
         const semitonesSlider = document.getElementById('semitones');
         const semitoneValue = document.getElementById('semitone-value');
         const pitchDescription = document.getElementById('pitch-description');
-        const recordedAudio = document.getElementById('recordedAudio');
         const outputAudio = document.getElementById('outputAudio');
         const status = document.getElementById('status');
-        
-        // Update pitch description
+        const recordSection = document.getElementById('recordSection');
+        const outputSection = document.getElementById('outputSection');
+
+        function stopPlayback() {
+            if (!outputAudio.paused) {
+                outputAudio.pause();
+            }
+            if (outputAudio.src) {
+                outputAudio.currentTime = 0;
+            }
+        }
+
         semitonesSlider.addEventListener('input', (e) => {
             const value = parseFloat(e.target.value);
             semitoneValue.textContent = value.toFixed(1);
-            
-            if (value === 0) {
-                pitchDescription.textContent = '不降调（原声）';
-            } else if (value > -3) {
-                pitchDescription.textContent = '轻微降低（适合略高的声音）';
-            } else if (value >= -6) {
-                pitchDescription.textContent = '轻度降低（适合女声）';
-            } else if (value >= -9) {
-                pitchDescription.textContent = '中度降低（适合高音女声）';
-            } else {
-                pitchDescription.textContent = '重度降低（适合特别尖的声音）';
-            }
+            if (value === 0) pitchDescription.textContent = '不降调（原声）';
+            else if (value > -3) pitchDescription.textContent = '轻微降低（适合略高的声音）';
+            else if (value >= -6) pitchDescription.textContent = '轻度降低（适合女声）';
+            else if (value >= -9) pitchDescription.textContent = '中度降低（适合高音女声）';
+            else pitchDescription.textContent = '重度降低（适合特别尖的声音）';
         });
-        
-        // Update playback speed in real-time
+
         document.querySelectorAll('input[name="speed"]').forEach(radio => {
             radio.addEventListener('change', (e) => {
                 const speed = parseFloat(e.target.value);
-                if (outputAudio.src) {
-                    outputAudio.playbackRate = speed;
-                }
-                if (recordedAudio.src) {
-                    recordedAudio.playbackRate = speed;
-                }
+                if (outputAudio.src) outputAudio.playbackRate = speed;
             });
         });
-        
-        // Recording functionality
+
         recordBtn.addEventListener('click', async () => {
+            if (mediaRecorder && mediaRecorder.state === 'recording') {
+                mediaRecorder.stop();
+                return;
+            }
+            stopPlayback();
             try {
                 const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                
-                // Try to use WAV format if supported, otherwise use webm
                 let options = { mimeType: 'audio/wav' };
-                if (!MediaRecorder.isTypeSupported('audio/wav')) {
-                    options = { mimeType: 'audio/webm' };
-                }
-                
+                if (!MediaRecorder.isTypeSupported('audio/wav')) options = { mimeType: 'audio/webm' };
                 mediaRecorder = new MediaRecorder(stream, options);
                 audioChunks = [];
-                
-                mediaRecorder.addEventListener('dataavailable', (event) => {
-                    audioChunks.push(event.data);
-                });
-                
+                mediaRecorder.addEventListener('dataavailable', (event) => { audioChunks.push(event.data); });
                 mediaRecorder.addEventListener('stop', async () => {
                     const mimeType = mediaRecorder.mimeType;
                     let blob = new Blob(audioChunks, { type: mimeType });
-                    
-                    // Convert webm to WAV using Web Audio API
                     if (mimeType.includes('webm')) {
                         try {
                             blob = await convertWebmToWav(blob);
                         } catch (e) {
-                            console.log('Conversion failed, using original format:', e);
+                            showStatus('error', '音频转换失败: ' + e.message);
+                            return;
                         }
                     }
-                    
                     currentAudioBlob = blob;
-                    const audioUrl = URL.createObjectURL(currentAudioBlob);
-                    recordedAudio.src = audioUrl;
-                    recordedAudio.style.display = 'block';
-                    
-                    // Set playback rate based on selected speed
-                    const selectedSpeed = parseFloat(document.querySelector('input[name="speed"]:checked').value);
-                    recordedAudio.playbackRate = selectedSpeed;
-                    
-                    processBtn.disabled = false;
-                    
-                    // Stop all tracks
                     stream.getTracks().forEach(track => track.stop());
+                    await processAudio();
                 });
-                
                 mediaRecorder.start();
-                recordBtn.style.display = 'none';
-                stopBtn.style.display = 'block';
+                setState('recording');
+                showStatus('info', '正在录音，再次点击即可停止并转化');
             } catch (err) {
                 showStatus('error', '无法访问麦克风: ' + err.message);
             }
         });
-        
-        // Convert webm to WAV using Web Audio API
+
+        async function processAudio() {
+            if (!currentAudioBlob) {
+                showStatus('error', '没有可处理的录音');
+                return;
+            }
+            setState('processing');
+            showStatus('processing', '正在转化并降低声调...');
+            const formData = new FormData();
+            formData.append('audio', currentAudioBlob, 'recording.wav');
+            formData.append('semitones', semitonesSlider.value);
+            try {
+                const response = await fetch('/process', { method: 'POST', body: formData });
+                if (!response.ok) {
+                    const contentType = response.headers.get('content-type');
+                    if (contentType && contentType.includes('application/json')) {
+                        const error = await response.json();
+                        throw new Error(error.error || 'Processing failed');
+                    } else {
+                        const text = await response.text();
+                        throw new Error('Server error: ' + text);
+                    }
+                }
+                const blob = await response.blob();
+                const url = URL.createObjectURL(blob);
+                outputAudio.src = url;
+                const selectedSpeed = parseFloat(document.querySelector('input[name="speed"]:checked').value);
+                outputAudio.playbackRate = selectedSpeed;
+                setState('processed');
+                try {
+                    await outputAudio.play();
+                    showStatus('success', '降调完成，已自动播放处理后的音频');
+                } catch (playErr) {
+                    showStatus('success', '降调完成，如未自动播放请手动点击播放');
+                }
+            } catch (err) {
+                showStatus('error', '错误: ' + err.message);
+                setState('idle');
+            }
+        }
+
+        function setState(state) {
+            if (state === 'idle') {
+                recordSection.style.display = 'block';
+                recordBtn.disabled = false;
+                recordLabel.textContent = '开始录音';
+                semitonesSlider.disabled = false;
+                outputSection.style.display = outputAudio.src ? 'block' : 'none';
+                outputAudio.src = '';
+                status.className = 'status';
+                status.textContent = '';
+                currentAudioBlob = null;
+            } else if (state === 'recording') {
+                stopPlayback();
+                recordSection.style.display = 'block';
+                recordBtn.disabled = false;
+                recordLabel.textContent = '停止并转化';
+                semitonesSlider.disabled = true;
+                outputSection.style.display = 'none';
+            } else if (state === 'processing') {
+                stopPlayback();
+                recordBtn.disabled = true;
+                recordLabel.textContent = '正在转化...';
+                semitonesSlider.disabled = true;
+            } else if (state === 'processed') {
+                recordBtn.disabled = false;
+                recordLabel.textContent = '再次录音';
+                semitonesSlider.disabled = false;
+                outputSection.style.display = 'block';
+            }
+        }
+
         async function convertWebmToWav(webmBlob) {
             const audioContext = new (window.AudioContext || window.webkitAudioContext)();
             const arrayBuffer = await webmBlob.arrayBuffer();
             const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
-            
-            // Convert AudioBuffer to WAV
             const wavBuffer = audioBufferToWav(audioBuffer);
             return new Blob([wavBuffer], { type: 'audio/wav' });
         }
-        
-        // Convert AudioBuffer to WAV format
+
         function audioBufferToWav(buffer) {
             const length = buffer.length * buffer.numberOfChannels * 2 + 44;
             const arrayBuffer = new ArrayBuffer(length);
@@ -472,27 +242,20 @@
             const channels = [];
             let offset = 0;
             let pos = 0;
-            
-            // Write WAV header
-            setUint32(0x46464952); // "RIFF"
-            setUint32(length - 8); // file length - 8
-            setUint32(0x45564157); // "WAVE"
-            setUint32(0x20746d66); // "fmt " chunk
-            setUint32(16); // length = 16
-            setUint16(1); // PCM (uncompressed)
+            setUint32(0x46464952);
+            setUint32(length - 8);
+            setUint32(0x45564157);
+            setUint32(0x20746d66);
+            setUint32(16);
+            setUint16(1);
             setUint16(buffer.numberOfChannels);
             setUint32(buffer.sampleRate);
-            setUint32(buffer.sampleRate * 2 * buffer.numberOfChannels); // avg. bytes/sec
-            setUint16(buffer.numberOfChannels * 2); // block-align
-            setUint16(16); // 16-bit
-            setUint32(0x61746164); // "data" - chunk
-            setUint32(length - pos - 4); // chunk length
-            
-            // Write interleaved data
-            for (let i = 0; i < buffer.numberOfChannels; i++) {
-                channels.push(buffer.getChannelData(i));
-            }
-            
+            setUint32(buffer.sampleRate * 2 * buffer.numberOfChannels);
+            setUint16(buffer.numberOfChannels * 2);
+            setUint16(16);
+            setUint32(0x61746164);
+            setUint32(length - pos - 4);
+            for (let i = 0; i < buffer.numberOfChannels; i++) channels.push(buffer.getChannelData(i));
             while (pos < length - 44) {
                 for (let i = 0; i < buffer.numberOfChannels; i++) {
                     let sample = Math.max(-1, Math.min(1, channels[i][offset]));
@@ -502,73 +265,13 @@
                 }
                 offset++;
             }
-            
             return arrayBuffer;
-            
-            function setUint16(data) {
-                view.setUint16(pos, data, true);
-                pos += 2;
-            }
-            
-            function setUint32(data) {
-                view.setUint32(pos, data, true);
-                pos += 4;
-            }
+            function setUint16(data) { view.setUint16(pos, data, true); pos += 2; }
+            function setUint32(data) { view.setUint32(pos, data, true); pos += 4; }
         }
-        
-        stopBtn.addEventListener('click', () => {
-            mediaRecorder.stop();
-            recordBtn.style.display = 'block';
-            stopBtn.style.display = 'none';
-        });
-        
-        // Process audio
-        processBtn.addEventListener('click', async () => {
-            if (!currentAudioBlob) {
-                showStatus('error', '请先录音');
-                return;
-            }
-            
-            showStatus('processing', '正在处理音频...请稍候');
-            processBtn.disabled = true;
-            outputAudio.style.display = 'none';
-            
-            const formData = new FormData();
-            formData.append('audio', currentAudioBlob, 'recording.wav');
-            formData.append('semitones', semitonesSlider.value);
-            // Speed will be controlled during playback, not during processing
-            
-            try {
-                const response = await fetch('/process', {
-                    method: 'POST',
-                    body: formData
-                });
-                
-                if (!response.ok) {
-                    const error = await response.json();
-                    throw new Error(error.error || 'Processing failed');
-                }
-                
-                const blob = await response.blob();
-                const url = URL.createObjectURL(blob);
-                outputAudio.src = url;
-                outputAudio.style.display = 'block';
-                
-                // Set playback rate based on selected speed
-                const selectedSpeed = parseFloat(document.querySelector('input[name="speed"]:checked').value);
-                outputAudio.playbackRate = selectedSpeed;
-                
-                // Show speed control section
-                document.getElementById('speedControlSection').style.display = 'block';
-                
-                showStatus('success', '✓ 降调成功！请在下方收听:');
-            } catch (err) {
-                showStatus('error', '错误: ' + err.message);
-            } finally {
-                processBtn.disabled = false;
-            }
-        });
-        
+
+        setState('idle');
+
         function showStatus(type, message) {
             status.className = 'status ' + type;
             status.textContent = message;

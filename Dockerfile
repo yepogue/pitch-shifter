@@ -17,6 +17,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy application code
 COPY web_app.py .
+COPY pitch_shifter.py .
 COPY templates templates/
 
 # Expose port (PORT will be set at runtime by Koyeb)

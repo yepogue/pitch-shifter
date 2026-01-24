@@ -14,6 +14,9 @@ import soundfile as sf
 
 app = Flask(__name__)
 app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024  # 50MB max file size
+# Disable static caching during dev to avoid stale HTML
+app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0
+app.jinja_env.auto_reload = True
 
 
 def pitch_shift_audio(input_path, semitones):
@@ -51,38 +54,58 @@ def pitch_shift_audio(input_path, semitones):
 
 @app.route('/')
 def index():
-    """Render main page"""
-    return render_template('index.html')
+    """Render main page with optional cache-busting version query."""
+    version = request.args.get('v', '20240124-3')
+    response = app.make_response(render_template('index.html', version=version))
+    # Extra cache busting for HTML
+    response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
+    response.headers['Pragma'] = 'no-cache'
+    response.headers['Expires'] = '0'
+    return response
 
 
 @app.route('/process', methods=['POST'])
 def process_audio():
     """Process recorded audio from microphone"""
+    print("=" * 60)
+    print("Received /process request")
     try:
         # Get pitch shift value
         semitones = float(request.form.get('semitones', -3.0))
+        print(f"Semitones: {semitones}")
         
         # Check if file was uploaded
         if 'audio' not in request.files:
+            print("ERROR: No audio file in request")
             return jsonify({'error': 'No audio file provided'}), 400
         
         file = request.files['audio']
+        print(f"File received: {file.filename}, content_type: {file.content_type}")
         
         if file.filename == '':
+            print("ERROR: Empty filename")
             return jsonify({'error': 'No file selected'}), 400
         
         # Save uploaded file
         temp_input = Path(tempfile.gettempdir()) / f"input_{file.filename}"
+        print(f"Saving to: {temp_input}")
         file.save(str(temp_input))
         
+        # Check file size
+        file_size = temp_input.stat().st_size
+        print(f"File saved, size: {file_size} bytes")
+        
         # Process audio (speed will be adjusted during playback)
+        print("Starting audio processing...")
         output_path = pitch_shift_audio(temp_input, semitones)
+        print(f"Processing complete: {output_path}")
         
         # Clean up input file
         if temp_input.exists():
             temp_input.unlink()
         
         # Return processed audio
+        print("Sending processed file back to client")
         return send_file(
             str(output_path),
             mimetype='audio/wav',
@@ -92,8 +115,10 @@ def process_audio():
     
     except Exception as e:
         import traceback
-        print(f"Error processing audio: {str(e)}")
+        error_msg = f"Error processing audio: {str(e)}"
+        print(error_msg)
         print(traceback.format_exc())
+        print("=" * 60)
         return jsonify({'error': str(e)}), 500
 
 
@@ -102,4 +127,5 @@ if __name__ == '__main__':
     port = int(os.getenv('PORT', '8000'))
     print("Starting web interface...")
     print(f"Open your browser and go to: http://localhost:{port}")
-    app.run(debug=True, host='0.0.0.0', port=port)
+    # Disable auto-reload to avoid interference
+    app.run(debug=False, host='0.0.0.0', port=port)
