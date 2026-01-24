@@ -11,7 +11,6 @@ from pathlib import Path
 from flask import Flask, render_template, request, jsonify, send_file
 import librosa
 import soundfile as sf
-from pydub import AudioSegment
 
 app = Flask(__name__)
 app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024  # 50MB max file size
