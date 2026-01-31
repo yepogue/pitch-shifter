@@ -121,76 +121,114 @@
         });
 
         recordBtn.addEventListener('click', async () => {
+            console.log('🔴 Record button clicked');
             if (mediaRecorder && mediaRecorder.state === 'recording') {
+                console.log('⏹️ Stopping recording...');
                 mediaRecorder.stop();
                 return;
             }
             stopPlayback();
             try {
+                console.log('🎤 Requesting microphone access...');
                 const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                console.log('✅ Microphone access granted');
                 let options = { mimeType: 'audio/wav' };
                 if (!MediaRecorder.isTypeSupported('audio/wav')) options = { mimeType: 'audio/webm' };
+                console.log('🎙️ Using MIME type:', options.mimeType);
                 mediaRecorder = new MediaRecorder(stream, options);
                 audioChunks = [];
-                mediaRecorder.addEventListener('dataavailable', (event) => { audioChunks.push(event.data); });
+                mediaRecorder.addEventListener('dataavailable', (event) => { 
+                    console.log('📦 Audio data chunk received:', event.data.size, 'bytes');
+                    audioChunks.push(event.data); 
+                });
                 mediaRecorder.addEventListener('stop', async () => {
+                    console.log('⏹️ Recording stopped, total chunks:', audioChunks.length);
                     const mimeType = mediaRecorder.mimeType;
                     let blob = new Blob(audioChunks, { type: mimeType });
+                    console.log('📊 Created blob:', blob.size, 'bytes, type:', blob.type);
                     if (mimeType.includes('webm')) {
+                        console.log('🔄 Converting webm to wav...');
                         try {
                             blob = await convertWebmToWav(blob);
+                            console.log('✅ Conversion complete:', blob.size, 'bytes');
                         } catch (e) {
+                            console.error('❌ Conversion failed:', e);
                             showStatus('error', '音频转换失败: ' + e.message);
                             return;
                         }
                     }
                     currentAudioBlob = blob;
-                    stream.getTracks().forEach(track => track.stop());
+                    console.log('✅ Audio blob ready:', currentAudioBlob.size, 'bytes');
+                    stream.getTracks().forEach(track => {
+                        console.log('🛑 Stopping track:', track.kind);
+                        track.stop();
+                    });
+                    console.log('🚀 Calling processAudio()...');
                     await processAudio();
                 });
                 mediaRecorder.start();
+                console.log('▶️ Recording started');
                 setState('recording');
                 showStatus('info', '正在录音，再次点击即可停止并转化');
             } catch (err) {
+                console.error('❌ Microphone error:', err);
                 showStatus('error', '无法访问麦克风: ' + err.message);
             }
         });
 
         async function processAudio() {
             if (!currentAudioBlob) {
+                console.error('❌ No audio blob to process');
                 showStatus('error', '没有可处理的录音');
                 return;
             }
+            console.log('🚀 Starting processAudio()');
+            console.log('📊 Blob size:', currentAudioBlob.size, 'bytes');
+            console.log('📊 Blob type:', currentAudioBlob.type);
+            console.log('🎚️ Semitones:', semitonesSlider.value);
+            
             setState('processing');
             showStatus('processing', '正在转化并降低声调...');
             const formData = new FormData();
             formData.append('audio', currentAudioBlob, 'recording.wav');
             formData.append('semitones', semitonesSlider.value);
+            
+            console.log('📤 Sending POST request to /process');
             try {
                 const response = await fetch('/process', { method: 'POST', body: formData });
+                console.log('📥 Response status:', response.status, response.statusText);
+                
                 if (!response.ok) {
                     const contentType = response.headers.get('content-type');
                     if (contentType && contentType.includes('application/json')) {
                         const error = await response.json();
+                        console.error('❌ Server error (JSON):', error);
                         throw new Error(error.error || 'Processing failed');
                     } else {
                         const text = await response.text();
+                        console.error('❌ Server error (text):', text);
                         throw new Error('Server error: ' + text);
                     }
                 }
+                
                 const blob = await response.blob();
+                console.log('✅ Received processed audio blob:', blob.size, 'bytes');
                 const url = URL.createObjectURL(blob);
                 outputAudio.src = url;
                 const selectedSpeed = parseFloat(document.querySelector('input[name="speed"]:checked').value);
                 outputAudio.playbackRate = selectedSpeed;
                 setState('processed');
+                console.log('🎵 Attempting to play audio...');
                 try {
                     await outputAudio.play();
+                    console.log('✅ Audio playing');
                     showStatus('success', '降调完成，已自动播放处理后的音频');
                 } catch (playErr) {
+                    console.warn('⚠️ Autoplay failed:', playErr);
                     showStatus('success', '降调完成，如未自动播放请手动点击播放');
                 }
             } catch (err) {
+                console.error('❌ Error in processAudio:', err);
                 showStatus('error', '错误: ' + err.message);
                 setState('idle');
             }
