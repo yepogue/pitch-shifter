@@ -126,39 +126,45 @@
         // Pre-warm the service on page load to avoid cold start delays
         // Send HEAD first to wake container, then a test request to load librosa
         let warmupController = new AbortController();
+        let isCleaningUp = false;
         
         async function warmUpService() {
             try {
                 console.log('🔥 Warming up service (this may take 30-60s)...');
-                // Step 1: Wake the container
-                const headResponse = await fetch('/', { 
+                // Step 1: Wake the container - don't await, just fire and forget
+                fetch('/', { 
                     method: 'HEAD',
                     signal: warmupController.signal
+                }).then(() => {
+                    if (!isCleaningUp) {
+                        console.log('✅ Container awake, loading audio libraries...');
+                        
+                        // Step 2: Trigger librosa load - also fire and forget
+                        const testBlob = new Blob(['RIFF'], { type: 'audio/wav' });
+                        const formData = new FormData();
+                        formData.append('audio', testBlob, 'test.wav');
+                        formData.append('semitones', '0');
+                        fetch('/process', { 
+                            method: 'POST', 
+                            body: formData,
+                            signal: warmupController.signal
+                        }).catch(() => {
+                            // Test request expected to fail, just warms up the worker
+                            if (!isCleaningUp) console.log('🔧 Libraries loading triggered');
+                        }).then(() => {
+                            if (!isCleaningUp) console.log('✅ Service fully ready');
+                        });
+                    }
+                }).catch(err => {
+                    if (err.name === 'AbortError') {
+                        console.log('🛑 Warmup aborted (page closing)');
+                    } else if (!isCleaningUp) {
+                        console.log('⚠️ Warmup in progress (service starting):', err.message);
+                    }
                 });
-                console.log('✅ Container awake, loading audio libraries...');
-                
-                // Step 2: Trigger librosa load with a tiny test request (will timeout but that's OK)
-                try {
-                    const testBlob = new Blob(['RIFF'], { type: 'audio/wav' });
-                    const formData = new FormData();
-                    formData.append('audio', testBlob, 'test.wav');
-                    formData.append('semitones', '0');
-                    await fetch('/process', { 
-                        method: 'POST', 
-                        body: formData,
-                        signal: warmupController.signal
-                    });
-                } catch (testErr) {
-                    // Test request expected to fail, just warms up the worker
-                    console.log('🔧 Libraries loading triggered');
-                }
-                
-                console.log('✅ Service fully ready');
             } catch (err) {
-                if (err.name === 'AbortError') {
-                    console.log('🛑 Warmup aborted (page closing)');
-                } else {
-                    console.log('⚠️ Warmup in progress (service starting):', err.message);
+                if (!isCleaningUp) {
+                    console.log('⚠️ Warmup error:', err.message);
                 }
             }
         }
@@ -175,17 +181,18 @@
             }
         }
         
-        // Cleanup function to stop all background processes
+        // Cleanup function to stop all background processes - must be synchronous and instant
         function cleanup() {
-            console.log('🧹 Cleaning up: stopping warmup and keep-alive');
+            isCleaningUp = true;
             warmupController.abort();
             if (keepAliveInterval) {
                 clearInterval(keepAliveInterval);
                 keepAliveInterval = null;
             }
+            // Don't log or do anything that could delay the page close
         }
         
-        // Stop all processes when page is closing/refreshing
+        // Stop all processes when page is closing/refreshing - synchronous event
         window.addEventListener('beforeunload', cleanup);
         window.addEventListener('pagehide', cleanup);
         
