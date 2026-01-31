@@ -3,6 +3,7 @@
 语音降调助听器网页界面
 帮助老年人通过降低音调来更清晰地听到对话
 直接从麦克风录音
+Version: 20260131-14
 """
 
 import os
@@ -27,6 +28,8 @@ import librosa
 import soundfile as sf
 import numpy as np  # Pre-import to avoid lazy loading
 logger.info(f"✅ Libraries loaded in {time.time() - import_start:.2f}s")
+
+VERSION = "20260131-14"
 
 app = Flask(__name__)
 app.config['MAX_CONTENT_LENGTH'] = 10 * 1024 * 1024  # Reduced to 10MB for memory constraints
@@ -100,12 +103,12 @@ def pitch_shift_audio(input_path, semitones):
 @app.route('/')
 def index():
     """Render main page with optional cache-busting version query."""
-    version = request.args.get('v', '20260131-10')
-    response = app.make_response(render_template('index.html', version=version))
+    response = app.make_response(render_template('index.html', version=VERSION))
     # Extra cache busting for HTML
     response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
     response.headers['Pragma'] = 'no-cache'
     response.headers['Expires'] = '0'
+    logger.info(f"📄 Serving index page (Version {VERSION})")
     return response
 
 
