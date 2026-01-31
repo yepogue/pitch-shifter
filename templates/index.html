@@ -163,12 +163,9 @@
             }
         }
         
-        // Abort warmup if page is closing/refreshing
-        window.addEventListener('beforeunload', () => {
-            warmupController.abort();
-        });
-        
         // Keep-alive: ping service every 4 minutes to prevent sleep (sleeps after 5 min)
+        let keepAliveInterval = null;
+        
         async function keepAlive() {
             try {
                 await fetch('/', { method: 'HEAD', signal: AbortSignal.timeout(5000) });
@@ -178,11 +175,25 @@
             }
         }
         
+        // Cleanup function to stop all background processes
+        function cleanup() {
+            console.log('🧹 Cleaning up: stopping warmup and keep-alive');
+            warmupController.abort();
+            if (keepAliveInterval) {
+                clearInterval(keepAliveInterval);
+                keepAliveInterval = null;
+            }
+        }
+        
+        // Stop all processes when page is closing/refreshing
+        window.addEventListener('beforeunload', cleanup);
+        window.addEventListener('pagehide', cleanup);
+        
         // Warm up service when page loads
         warmUpService();
         
         // Start keep-alive pings every 4 minutes (240 seconds)
-        setInterval(keepAlive, 240000);
+        keepAliveInterval = setInterval(keepAlive, 240000);
 
         recordBtn.addEventListener('click', async () => {
             console.log('🔴 Record button clicked');
