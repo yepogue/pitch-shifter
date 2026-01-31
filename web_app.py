@@ -100,7 +100,7 @@ def pitch_shift_audio(input_path, semitones):
 @app.route('/')
 def index():
     """Render main page with optional cache-busting version query."""
-    version = request.args.get('v', '20260131-8')
+    version = request.args.get('v', '20260131-9')
     response = app.make_response(render_template('index.html', version=version))
     # Extra cache busting for HTML
     response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
@@ -114,6 +114,15 @@ def process_audio():
     """Process recorded audio from microphone"""
     logger.info("=" * 60)
     logger.info("📥 Received /process request")
+    
+    # Check if client is still connected before starting
+    if request.environ.get('werkzeug.socket'):
+        try:
+            request.environ.get('werkzeug.socket').getpeername()
+        except:
+            logger.warning("⚠️ Client disconnected before processing started")
+            return '', 499  # Client Closed Request
+    
     try:
         # Get pitch shift value
         semitones = float(request.form.get('semitones', -3.0))
@@ -142,7 +151,17 @@ def process_audio():
         
         if file_size == 0:
             logger.error("❌ Uploaded file is empty (0 bytes)")
+            temp_input.unlink(missing_ok=True)
             return jsonify({'error': 'Uploaded file is empty'}), 400
+        
+        # Check client connection again before heavy processing
+        if request.environ.get('werkzeug.socket'):
+            try:
+                request.environ.get('werkzeug.socket').getpeername()
+            except:
+                logger.warning("⚠️ Client disconnected before audio processing")
+                temp_input.unlink(missing_ok=True)
+                return '', 499
         
         # Process audio (speed will be adjusted during playback)
         logger.info("🚀 Starting audio processing...")
