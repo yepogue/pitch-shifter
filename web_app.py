@@ -3,7 +3,7 @@
 语音降调助听器网页界面
 帮助老年人通过降低音调来更清晰地听到对话
 直接从麦克风录音
-Version: 20260131-23 (Use pyrubberband for correct phase vocoder pitch shifting)
+Version: 20260131-24 (Simple resampling - fast, correct pitch, duration changes)
 """
 
 import os
@@ -26,11 +26,11 @@ logger.info("🔧 Pre-loading audio libraries...")
 import_start = time.time()
 import soundfile as sf
 import numpy as np
-import pyrubberband as pyrb
+from scipy import signal
 import gc
 logger.info(f"✅ Libraries loaded in {time.time() - import_start:.2f}s")
 
-VERSION = "20260131-23"
+VERSION = "20260131-24"
 
 app = Flask(__name__)
 app.config['MAX_CONTENT_LENGTH'] = 10 * 1024 * 1024  # Reduced to 10MB for memory constraints
@@ -64,15 +64,24 @@ def pitch_shift_audio(input_path, semitones):
     load_time = time.time() - load_start
     logger.info(f"✓ Audio loaded in {load_time:.2f}s: {len(y)} samples, sample rate={sr}Hz, duration={len(y)/sr:.2f}s")
     
-    # Apply pitch shift using pyrubberband (fast phase vocoder implementation)
+    # Apply pitch shift using simple resampling (changes duration but FAST and correct pitch)
     logger.info(f"🔄 Applying pitch shift ({semitones} semitones)...")
     shift_start = time.time()
     
-    # pyrubberband.pitch_shift returns same length audio with shifted pitch
-    y_shifted = pyrb.pitch_shift(y, sr, semitones)
+    # Calculate pitch ratio
+    pitch_ratio = 2 ** (semitones / 12.0)
+    
+    # For lower pitch, we need MORE samples (stretch audio)
+    # new_length = original_length / pitch_ratio
+    # Using resample_poly for better quality than basic resample
+    up = 1000
+    down = int(1000 * pitch_ratio)
+    
+    logger.info(f"  Resampling: up={up}, down={down}, ratio={up/down:.4f}, pitch_ratio={pitch_ratio:.4f}")
+    y_shifted = signal.resample_poly(y, up, down)
     
     shift_time = time.time() - shift_start
-    logger.info(f"✓ Pitch shift complete in {shift_time:.2f}s")
+    logger.info(f"✓ Pitch shift complete in {shift_time:.2f}s (original: {len(y)} samples, new: {len(y_shifted)} samples)")
     
     # Free original audio from memory
     del y
