@@ -3,7 +3,7 @@
 语音降调助听器网页界面
 帮助老年人通过降低音调来更清晰地听到对话
 直接从麦克风录音
-Version: 20260131-25 (Auto playback rate compensation for original duration)
+Version: 20260131-26 (Final: 0.9x base speed with auto compensation)
 """
 
 import os
@@ -30,7 +30,7 @@ from scipy import signal
 import gc
 logger.info(f"✅ Libraries loaded in {time.time() - import_start:.2f}s")
 
-VERSION = "20260131-25"
+VERSION = "20260131-26"
 
 app = Flask(__name__)
 app.config['MAX_CONTENT_LENGTH'] = 10 * 1024 * 1024  # Reduced to 10MB for memory constraints
