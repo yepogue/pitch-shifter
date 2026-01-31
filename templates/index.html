@@ -123,90 +123,9 @@
             });
         });
 
-        // Pre-warm the service on page load to avoid cold start delays
-        // Send HEAD first to wake container, then a test request to load librosa
-        let warmupController = null;
-        let isCleaningUp = false;
-        
-        async function warmUpService() {
-            // Always create a fresh controller for this warmup session
-            warmupController = new AbortController();
-            isCleaningUp = false;
-            
-            try {
-                console.log('🔥 Warming up service (this may take 30-60s)...');
-                // Step 1: Wake the container
-                fetch('/', { 
-                    method: 'HEAD',
-                    signal: warmupController.signal
-                }).then(() => {
-                    if (!isCleaningUp) {
-                        console.log('✅ Container awake, loading audio libraries...');
-                        
-                        // Step 2: Trigger librosa load
-                        const testBlob = new Blob(['RIFF'], { type: 'audio/wav' });
-                        const formData = new FormData();
-                        formData.append('audio', testBlob, 'test.wav');
-                        formData.append('semitones', '0');
-                        fetch('/process', { 
-                            method: 'POST', 
-                            body: formData,
-                            signal: warmupController.signal
-                        }).catch(() => {
-                            // Test request expected to fail, just warms up the worker
-                            if (!isCleaningUp) console.log('🔧 Libraries loading triggered');
-                        }).then(() => {
-                            if (!isCleaningUp) console.log('✅ Service fully ready');
-                        });
-                    }
-                }).catch(err => {
-                    if (err.name === 'AbortError') {
-                        console.log('🛑 Warmup aborted (page closing)');
-                    } else if (!isCleaningUp) {
-                        console.log('⚠️ Warmup in progress (service starting):', err.message);
-                    }
-                });
-            } catch (err) {
-                if (!isCleaningUp) {
-                    console.log('⚠️ Warmup error:', err.message);
-                }
-            }
-        }
-        
-        // Keep-alive: ping service every 4 minutes to prevent sleep (sleeps after 5 min)
-        let keepAliveInterval = null;
-        
-        async function keepAlive() {
-            try {
-                await fetch('/', { method: 'HEAD', signal: AbortSignal.timeout(5000) });
-                console.log('💓 Keep-alive ping sent');
-            } catch (err) {
-                console.log('⚠️ Keep-alive ping failed:', err.message);
-            }
-        }
-        
-        // Cleanup function to stop all background processes - must be synchronous and instant
-        function cleanup() {
-            isCleaningUp = true;
-            if (warmupController) {
-                warmupController.abort();
-            }
-            if (keepAliveInterval) {
-                clearInterval(keepAliveInterval);
-                keepAliveInterval = null;
-            }
-            // Don't log or do anything that could delay the page close
-        }
-        
-        // Stop all processes when page is closing/refreshing - synchronous event
-        window.addEventListener('beforeunload', cleanup);
-        window.addEventListener('pagehide', cleanup);
-        
-        // Warm up service when page loads
-        warmUpService();
-        
-        // Start keep-alive pings every 4 minutes (240 seconds)
-        keepAliveInterval = setInterval(keepAlive, 240000);
+        // Note: With UptimeRobot monitoring, the container stays awake 24/7.
+        // Server pre-loads librosa at startup, so no client-side warmup needed.
+        console.log('✅ Page loaded - service kept alive by external monitoring');
 
         recordBtn.addEventListener('click', async () => {
             console.log('🔴 Record button clicked');
