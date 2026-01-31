@@ -125,13 +125,15 @@
 
         // Pre-warm the service on page load to avoid cold start delays
         // Send HEAD first to wake container, then a test request to load librosa
+        let warmupController = new AbortController();
+        
         async function warmUpService() {
             try {
                 console.log('🔥 Warming up service (this may take 30-60s)...');
                 // Step 1: Wake the container
                 const headResponse = await fetch('/', { 
                     method: 'HEAD',
-                    signal: AbortSignal.timeout(90000) 
+                    signal: warmupController.signal
                 });
                 console.log('✅ Container awake, loading audio libraries...');
                 
@@ -144,7 +146,7 @@
                     await fetch('/process', { 
                         method: 'POST', 
                         body: formData,
-                        signal: AbortSignal.timeout(10000)
+                        signal: warmupController.signal
                     });
                 } catch (testErr) {
                     // Test request expected to fail, just warms up the worker
@@ -153,9 +155,18 @@
                 
                 console.log('✅ Service fully ready');
             } catch (err) {
-                console.log('⚠️ Warmup in progress (service starting):', err.message);
+                if (err.name === 'AbortError') {
+                    console.log('🛑 Warmup aborted (page closing)');
+                } else {
+                    console.log('⚠️ Warmup in progress (service starting):', err.message);
+                }
             }
         }
+        
+        // Abort warmup if page is closing/refreshing
+        window.addEventListener('beforeunload', () => {
+            warmupController.abort();
+        });
         
         // Keep-alive: ping service every 4 minutes to prevent sleep (sleeps after 5 min)
         async function keepAlive() {

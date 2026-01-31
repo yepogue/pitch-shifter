@@ -93,7 +93,7 @@ def pitch_shift_audio(input_path, semitones):
 @app.route('/')
 def index():
     """Render main page with optional cache-busting version query."""
-    version = request.args.get('v', '20260130-7')
+    version = request.args.get('v', '20260131-2')
     response = app.make_response(render_template('index.html', version=version))
     # Extra cache busting for HTML
     response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
