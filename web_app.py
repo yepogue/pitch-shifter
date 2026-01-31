@@ -3,7 +3,7 @@
 语音降调助听器网页界面
 帮助老年人通过降低音调来更清晰地听到对话
 直接从麦克风录音
-Version: 20260131-15 (FORCE REBUILD - Platform cache issue)
+Version: 20260131-16 (Fix librosa.load hang - remove res_type)
 """
 
 import os
@@ -29,7 +29,7 @@ import soundfile as sf
 import numpy as np  # Pre-import to avoid lazy loading
 logger.info(f"✅ Libraries loaded in {time.time() - import_start:.2f}s")
 
-VERSION = "20260131-15"
+VERSION = "20260131-16"
 
 app = Flask(__name__)
 app.config['MAX_CONTENT_LENGTH'] = 10 * 1024 * 1024  # Reduced to 10MB for memory constraints
@@ -59,7 +59,7 @@ def pitch_shift_audio(input_path, semitones):
     # This significantly reduces memory usage while maintaining speech quality
     logger.info("📂 Loading audio file...")
     load_start = time.time()
-    y, sr = librosa.load(str(input_path), sr=16000, res_type='fft', mono=True)
+    y, sr = librosa.load(str(input_path), sr=16000, mono=True)  # Removed res_type='fft' - causing hangs
     load_time = time.time() - load_start
     logger.info(f"✓ Audio loaded in {load_time:.2f}s: {len(y)} samples, sample rate={sr}Hz, duration={len(y)/sr:.2f}s")
     
