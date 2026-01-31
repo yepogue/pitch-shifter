@@ -3,7 +3,7 @@
 语音降调助听器网页界面
 帮助老年人通过降低音调来更清晰地听到对话
 直接从麦克风录音
-Version: 20260131-21 (Scipy polyphase resampling - fast with built-in anti-aliasing)
+Version: 20260131-23 (Use pyrubberband for correct phase vocoder pitch shifting)
 """
 
 import os
@@ -26,11 +26,11 @@ logger.info("🔧 Pre-loading audio libraries...")
 import_start = time.time()
 import soundfile as sf
 import numpy as np
-from scipy import signal
+import pyrubberband as pyrb
 import gc
 logger.info(f"✅ Libraries loaded in {time.time() - import_start:.2f}s")
 
-VERSION = "20260131-21"
+VERSION = "20260131-23"
 
 app = Flask(__name__)
 app.config['MAX_CONTENT_LENGTH'] = 10 * 1024 * 1024  # Reduced to 10MB for memory constraints
@@ -64,21 +64,12 @@ def pitch_shift_audio(input_path, semitones):
     load_time = time.time() - load_start
     logger.info(f"✓ Audio loaded in {load_time:.2f}s: {len(y)} samples, sample rate={sr}Hz, duration={len(y)/sr:.2f}s")
     
-    # Apply pitch shift using polyphase resampling (good balance of speed and quality)
+    # Apply pitch shift using pyrubberband (fast phase vocoder implementation)
     logger.info(f"🔄 Applying pitch shift ({semitones} semitones)...")
     shift_start = time.time()
     
-    # Calculate pitch ratio: 2^(semitones/12)
-    pitch_ratio = 2 ** (semitones / 12.0)
-    
-    # Use resample_poly for better quality than basic resample
-    # Convert ratio to up/down integers
-    ratio_factor = 1000
-    up = int(ratio_factor)
-    down = int(ratio_factor * pitch_ratio)
-    
-    # Polyphase resampling with built-in anti-aliasing
-    y_shifted = signal.resample_poly(y, up, down)
+    # pyrubberband.pitch_shift returns same length audio with shifted pitch
+    y_shifted = pyrb.pitch_shift(y, sr, semitones)
     
     shift_time = time.time() - shift_start
     logger.info(f"✓ Pitch shift complete in {shift_time:.2f}s")
