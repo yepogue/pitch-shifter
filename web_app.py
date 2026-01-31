@@ -3,7 +3,7 @@
 语音降调助听器网页界面
 帮助老年人通过降低音调来更清晰地听到对话
 直接从麦克风录音
-Version: 20260131-17 (Fix pitch_shift hang - remove res_type from pitch_shift)
+Version: 20260131-18 (Replace librosa pitch_shift with scipy resampling - much faster)
 """
 
 import os
@@ -21,15 +21,16 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Pre-load heavy audio libraries at startup to speed up first request
+# Pre-load audio libraries at startup to speed up first request
 logger.info("🔧 Pre-loading audio libraries...")
 import_start = time.time()
-import librosa
 import soundfile as sf
-import numpy as np  # Pre-import to avoid lazy loading
+import numpy as np
+from scipy import signal
+import gc
 logger.info(f"✅ Libraries loaded in {time.time() - import_start:.2f}s")
 
-VERSION = "20260131-17"
+VERSION = "20260131-18"
 
 app = Flask(__name__)
 app.config['MAX_CONTENT_LENGTH'] = 10 * 1024 * 1024  # Reduced to 10MB for memory constraints
@@ -40,7 +41,7 @@ app.jinja_env.auto_reload = True
 
 def pitch_shift_audio(input_path, semitones):
     """
-    Change audio pitch (optimized for low memory environments)
+    Change audio pitch using scipy resampling (fast, low memory, no librosa dependency)
     
     Args:
         input_path: Input audio file path
@@ -49,35 +50,35 @@ def pitch_shift_audio(input_path, semitones):
     Returns:
         Path to output file
     """
-    import gc
     input_path = Path(input_path)
     
     logger.info(f"🎵 Starting pitch shift: {input_path.name}, semitones={semitones}")
     overall_start = time.time()
     
-    # Load audio with lower sample rate to save memory (16kHz is good for voice)
-    # This significantly reduces memory usage while maintaining speech quality
+    # Load audio
     logger.info("📂 Loading audio file...")
     load_start = time.time()
-    y, sr = librosa.load(str(input_path), sr=16000, mono=True)  # Removed res_type='fft' - causing hangs
+    y, sr = sf.read(str(input_path))
+    if y.ndim > 1:
+        y = y.mean(axis=1)  # Convert to mono
     load_time = time.time() - load_start
     logger.info(f"✓ Audio loaded in {load_time:.2f}s: {len(y)} samples, sample rate={sr}Hz, duration={len(y)/sr:.2f}s")
     
-    # Apply pitch shift with very aggressive memory optimization
+    # Apply pitch shift using simple resampling (very fast and memory-efficient)
     logger.info(f"🔄 Applying pitch shift ({semitones} semitones)...")
     shift_start = time.time()
-    y_shifted = librosa.effects.pitch_shift(
-        y=y,
-        sr=sr,
-        n_steps=semitones,
-        bins_per_octave=12,
-        n_fft=512,  # Even smaller FFT for lower memory
-        hop_length=128  # Smaller hop for lower memory
-    )
+    
+    # Calculate pitch ratio: 2^(semitones/12)
+    pitch_ratio = 2 ** (semitones / 12.0)
+    
+    # Resample to change pitch without changing duration
+    new_length = int(len(y) / pitch_ratio)
+    y_shifted = signal.resample(y, new_length)
+    
     shift_time = time.time() - shift_start
     logger.info(f"✓ Pitch shift complete in {shift_time:.2f}s")
     
-    # Free original audio from memory immediately
+    # Free original audio from memory
     del y
     gc.collect()
     
