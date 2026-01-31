@@ -9,18 +9,24 @@ import os
 import tempfile
 from pathlib import Path
 from flask import Flask, render_template, request, jsonify, send_file
-import librosa
-import soundfile as sf
 import logging
 import time
 
-# Configure logging
+# Configure logging BEFORE importing heavy libraries
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s [%(levelname)s] %(message)s',
     datefmt='%Y-%m-%d %H:%M:%S'
 )
 logger = logging.getLogger(__name__)
+
+# Pre-load heavy audio libraries at startup to speed up first request
+logger.info("🔧 Pre-loading audio libraries...")
+import_start = time.time()
+import librosa
+import soundfile as sf
+import numpy as np  # Pre-import to avoid lazy loading
+logger.info(f"✅ Libraries loaded in {time.time() - import_start:.2f}s")
 
 app = Flask(__name__)
 app.config['MAX_CONTENT_LENGTH'] = 10 * 1024 * 1024  # Reduced to 10MB for memory constraints
