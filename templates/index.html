@@ -125,21 +125,28 @@
 
         // Pre-warm the service on page load to avoid cold start delays
         // Send HEAD first to wake container, then a test request to load librosa
-        let warmupController = new AbortController();
+        let warmupController = null;
         let isCleaningUp = false;
         
         async function warmUpService() {
+            // Always create a fresh controller for this warmup session
+            warmupController = new AbortController();
+            isCleaningUp = false;
+            
             try {
                 console.log('🔥 Warming up service (this may take 30-60s)...');
-                // Step 1: Wake the container - don't await, just fire and forget
+                // Step 1: Wake the container with timeout
                 fetch('/', { 
                     method: 'HEAD',
-                    signal: warmupController.signal
+                    signal: AbortSignal.any([
+                        warmupController.signal,
+                        AbortSignal.timeout(60000)
+                    ])
                 }).then(() => {
                     if (!isCleaningUp) {
                         console.log('✅ Container awake, loading audio libraries...');
                         
-                        // Step 2: Trigger librosa load - also fire and forget
+                        // Step 2: Trigger librosa load with timeout
                         const testBlob = new Blob(['RIFF'], { type: 'audio/wav' });
                         const formData = new FormData();
                         formData.append('audio', testBlob, 'test.wav');
@@ -147,7 +154,10 @@
                         fetch('/process', { 
                             method: 'POST', 
                             body: formData,
-                            signal: warmupController.signal
+                            signal: AbortSignal.any([
+                                warmupController.signal,
+                                AbortSignal.timeout(60000)
+                            ])
                         }).catch(() => {
                             // Test request expected to fail, just warms up the worker
                             if (!isCleaningUp) console.log('🔧 Libraries loading triggered');
@@ -184,7 +194,9 @@
         // Cleanup function to stop all background processes - must be synchronous and instant
         function cleanup() {
             isCleaningUp = true;
-            warmupController.abort();
+            if (warmupController) {
+                warmupController.abort();
+            }
             if (keepAliveInterval) {
                 clearInterval(keepAliveInterval);
                 keepAliveInterval = null;
