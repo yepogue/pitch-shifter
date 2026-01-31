@@ -137,8 +137,21 @@
             }
         }
         
+        // Keep-alive: ping service every 4 minutes to prevent sleep (sleeps after 5 min)
+        async function keepAlive() {
+            try {
+                await fetch('/', { method: 'HEAD', signal: AbortSignal.timeout(5000) });
+                console.log('💓 Keep-alive ping sent');
+            } catch (err) {
+                console.log('⚠️ Keep-alive ping failed:', err.message);
+            }
+        }
+        
         // Warm up service when page loads
         warmUpService();
+        
+        // Start keep-alive pings every 4 minutes (240 seconds)
+        setInterval(keepAlive, 240000);
 
         recordBtn.addEventListener('click', async () => {
             console.log('🔴 Record button clicked');
