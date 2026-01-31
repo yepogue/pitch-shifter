@@ -40,9 +40,9 @@
         <div class="section">
             <div class="section-title">降调调整（相对降低）</div>
             <div class="control-group">
-                <label for="semitones">降低半音数: <span id="semitone-value">-3.0</span></label>
-                <input type="range" id="semitones" min="-12" max="0" step="0.5" value="-3">
-                <div class="value-display" id="pitch-description">轻度降低（适合女声）</div>
+                <label for="semitones">降低半音数: <span id="semitone-value">-5.0</span></label>
+                <input type="range" id="semitones" min="-12" max="0" step="0.5" value="-5">
+                <div class="value-display" id="pitch-description">中度降低（适合女声）</div>
             </div>
         </div>
 
@@ -111,8 +111,8 @@
             semitoneValue.textContent = value.toFixed(1);
             if (value === 0) pitchDescription.textContent = '不降调（原声）';
             else if (value > -3) pitchDescription.textContent = '轻微降低（适合略高的声音）';
-            else if (value >= -6) pitchDescription.textContent = '轻度降低（适合女声）';
-            else if (value >= -9) pitchDescription.textContent = '中度降低（适合高音女声）';
+            else if (value >= -5) pitchDescription.textContent = '轻度降低（适合女声）';
+            else if (value >= -8) pitchDescription.textContent = '中度降低（适合高音女声）';
             else pitchDescription.textContent = '重度降低（适合特别尖的声音）';
         });
 
