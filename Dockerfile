@@ -25,4 +25,5 @@ EXPOSE 8000
 
 # Start application using PORT environment variable
 # Use shell form (sh -c) to ensure environment variable expansion
-CMD sh -c "gunicorn --bind 0.0.0.0:${PORT:-8000} --workers 1 --timeout 120 --access-logfile - --error-logfile - --log-level debug web_app:app"
+# Increased timeout to 180 seconds for audio processing
+CMD sh -c "gunicorn --bind 0.0.0.0:${PORT:-8000} --workers 1 --timeout 180 --access-logfile - --error-logfile - --log-level info web_app:app"

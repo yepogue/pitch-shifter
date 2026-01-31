@@ -13,7 +13,7 @@ import librosa
 import soundfile as sf
 
 app = Flask(__name__)
-app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024  # 50MB max file size
+app.config['MAX_CONTENT_LENGTH'] = 10 * 1024 * 1024  # Reduced to 10MB for memory constraints
 # Disable static caching during dev to avoid stale HTML
 app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0
 app.jinja_env.auto_reload = True
@@ -21,7 +21,7 @@ app.jinja_env.auto_reload = True
 
 def pitch_shift_audio(input_path, semitones):
     """
-    Change audio pitch (optimized for faster processing)
+    Change audio pitch (optimized for low memory environments)
     
     Args:
         input_path: Input audio file path
@@ -30,24 +30,35 @@ def pitch_shift_audio(input_path, semitones):
     Returns:
         Path to output file
     """
+    import gc
     input_path = Path(input_path)
     
-    # Load audio with faster resampling method
-    y, sr = librosa.load(str(input_path), sr=None, res_type='kaiser_fast')
+    # Load audio with lower sample rate to save memory (16kHz is good for voice)
+    # This significantly reduces memory usage while maintaining speech quality
+    y, sr = librosa.load(str(input_path), sr=16000, res_type='kaiser_fast', mono=True)
     
-    # Apply pitch shift with optimized parameters for speed
+    # Apply pitch shift with very aggressive memory optimization
     y_shifted = librosa.effects.pitch_shift(
         y=y,
         sr=sr,
         n_steps=semitones,
         bins_per_octave=12,
-        n_fft=1024,  # Smaller FFT window for faster processing
-        hop_length=256  # Smaller hop length for faster processing
+        n_fft=512,  # Even smaller FFT for lower memory
+        hop_length=128,  # Smaller hop for lower memory
+        res_type='linear'  # Faster, less memory-intensive resampling
     )
+    
+    # Free original audio from memory immediately
+    del y
+    gc.collect()
     
     # Save output
     output_path = Path(tempfile.gettempdir()) / f"pitched_{input_path.stem}.wav"
     sf.write(str(output_path), y_shifted, sr)
+    
+    # Clean up
+    del y_shifted
+    gc.collect()
     
     return output_path
 
