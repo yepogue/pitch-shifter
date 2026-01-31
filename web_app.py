@@ -49,7 +49,7 @@ def pitch_shift_audio(input_path, semitones):
     # Load audio with lower sample rate to save memory (16kHz is good for voice)
     # This significantly reduces memory usage while maintaining speech quality
     logger.info("📂 Loading audio file...")
-    y, sr = librosa.load(str(input_path), sr=16000, res_type='kaiser_fast', mono=True)
+    y, sr = librosa.load(str(input_path), sr=16000, res_type='fft', mono=True)
     logger.info(f"✓ Audio loaded: {len(y)} samples, sample rate={sr}Hz, duration={len(y)/sr:.2f}s")
     
     # Apply pitch shift with very aggressive memory optimization
@@ -87,7 +87,7 @@ def pitch_shift_audio(input_path, semitones):
 @app.route('/')
 def index():
     """Render main page with optional cache-busting version query."""
-    version = request.args.get('v', '20260130-6')
+    version = request.args.get('v', '20260130-7')
     response = app.make_response(render_template('index.html', version=version))
     # Extra cache busting for HTML
     response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
@@ -163,7 +163,7 @@ def process_audio():
 
 if __name__ == '__main__':
     # Read PORT from environment variable (required for deployment)
-    port = int(os.getenv('PORT', '8000'))
+    port = int(os.getenv('PORT', '8002'))
     logger.info("🚀 Starting web interface...")
     logger.info(f"🌐 Open your browser and go to: http://localhost:{port}")
     logger.info("=" * 60)
