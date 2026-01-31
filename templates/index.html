@@ -247,10 +247,14 @@
             console.log('📤 Sending POST request to /process');
             const requestStartTime = performance.now();
             try {
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
                 const response = await fetch('/process', { 
                     method: 'POST', 
-                    body: formData
+                    body: formData,
+                    signal: controller.signal
                 });
+                clearTimeout(timeoutId);
                 const requestEndTime = performance.now();
                 const requestDuration = ((requestEndTime - requestStartTime) / 1000).toFixed(2);
                 console.log('📥 Response status:', response.status, response.statusText);
