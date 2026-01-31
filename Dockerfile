@@ -24,6 +24,6 @@ COPY templates templates/
 EXPOSE 8000
 
 # Start application using PORT environment variable
-# Use shell form (sh -c) to ensure environment variable expansion
-# Increased timeout to 180 seconds for audio processing
-CMD sh -c "gunicorn --bind 0.0.0.0:${PORT:-8000} --workers 1 --timeout 180 --access-logfile - --error-logfile - --log-level info web_app:app"
+# Use 2 workers so one can handle new requests while another processes
+# Worker timeout at 60s - processing takes ~0.5s normally, this catches hangs
+CMD sh -c "gunicorn --bind 0.0.0.0:${PORT:-8000} --workers 2 --timeout 60 --graceful-timeout 30 --access-logfile - --error-logfile - --log-level info web_app:app"
