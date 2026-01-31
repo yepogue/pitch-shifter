@@ -124,16 +124,36 @@
         });
 
         // Pre-warm the service on page load to avoid cold start delays
+        // Send HEAD first to wake container, then a test request to load librosa
         async function warmUpService() {
             try {
-                console.log('🔥 Warming up service...');
-                const warmupResponse = await fetch('/', { 
+                console.log('🔥 Warming up service (this may take 30-60s)...');
+                // Step 1: Wake the container
+                const headResponse = await fetch('/', { 
                     method: 'HEAD',
-                    signal: AbortSignal.timeout(10000) 
+                    signal: AbortSignal.timeout(90000) 
                 });
-                console.log('✅ Service is ready');
+                console.log('✅ Container awake, loading audio libraries...');
+                
+                // Step 2: Trigger librosa load with a tiny test request (will timeout but that's OK)
+                try {
+                    const testBlob = new Blob(['RIFF'], { type: 'audio/wav' });
+                    const formData = new FormData();
+                    formData.append('audio', testBlob, 'test.wav');
+                    formData.append('semitones', '0');
+                    await fetch('/process', { 
+                        method: 'POST', 
+                        body: formData,
+                        signal: AbortSignal.timeout(10000)
+                    });
+                } catch (testErr) {
+                    // Test request expected to fail, just warms up the worker
+                    console.log('🔧 Libraries loading triggered');
+                }
+                
+                console.log('✅ Service fully ready');
             } catch (err) {
-                console.log('⚠️ Warmup request failed (service may be sleeping):', err.message);
+                console.log('⚠️ Warmup in progress (service starting):', err.message);
             }
         }
         
@@ -295,12 +315,12 @@
                 }
             } catch (err) {
                 console.error('❌ Error in processAudio:', err);
-                if (error.name === 'AbortError') {
+                if (err.name === 'AbortError') {
                     showStatus('error', '处理超时 - 服务可能正在启动，请稍后重试');
-                } else if (error.message.includes('504') || error.message.includes('502')) {
+                } else if (err.message && (err.message.includes('504') || err.message.includes('502'))) {
                     showStatus('error', '服务正在启动中，请等待30秒后重试');
                 } else {
-                    showStatus('error', '处理失败: ' + error.message);
+                    showStatus('error', '处理失败: ' + (err.message || err));
                 }
                 setState('idle');
             }
