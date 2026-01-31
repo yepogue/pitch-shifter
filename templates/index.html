@@ -211,14 +211,8 @@
             console.log('🔥 Waking up service...');
             const wakeStart = performance.now();
             try {
-                const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 15000); // 15s timeout for wake-up
-                
-                await fetch('/', { 
-                    method: 'HEAD',
-                    signal: controller.signal
-                });
-                clearTimeout(timeoutId);
+                // Simple fetch without abort - if it takes too long, the main request will handle it
+                await fetch('/', { method: 'HEAD' });
                 
                 const wakeTime = ((performance.now() - wakeStart) / 1000).toFixed(2);
                 console.log(`✅ Service awake in ${wakeTime}s`);
