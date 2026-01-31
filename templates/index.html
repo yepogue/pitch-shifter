@@ -250,12 +250,12 @@
             formData.append('audio', currentAudioBlob, 'recording.wav');
             formData.append('semitones', semitonesSlider.value);
             
-            consoleService should be awake now, so use shorter timeout (30s should be plenty)
+            console.log('📤 Sending POST request to /process');
+            const requestStartTime = performance.now();
+            try {
+                // Service should be awake now, so use shorter timeout (30s should be plenty)
                 const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 3
-                // Longer timeout for cold starts (service wakes up in ~60s)
-                const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 120000); // 120 second timeout
+                const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
                 
                 const response = await fetch('/process', { 
                     method: 'POST', 
