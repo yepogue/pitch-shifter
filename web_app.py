@@ -61,7 +61,7 @@ def pitch_shift_audio(input_path, semitones):
         bins_per_octave=12,
         n_fft=512,  # Even smaller FFT for lower memory
         hop_length=128,  # Smaller hop for lower memory
-        res_type='linear'  # Faster, less memory-intensive resampling
+        res_type='fft'  # Use FFT-based resampling (no external deps needed)
     )
     logger.info("✓ Pitch shift complete")
     
