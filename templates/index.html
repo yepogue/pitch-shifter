@@ -118,8 +118,14 @@
 
         document.querySelectorAll('input[name="speed"]').forEach(radio => {
             radio.addEventListener('change', (e) => {
-                const speed = parseFloat(e.target.value);
-                if (outputAudio.src) outputAudio.playbackRate = speed;
+                const selectedSpeed = parseFloat(e.target.value);
+                if (outputAudio.src) {
+                    // Apply duration compensation when changing speed
+                    const semitones = parseFloat(semitonesSlider.value);
+                    const pitchRatio = Math.pow(2, semitones / 12.0);
+                    const durationCompensation = 1.0 / pitchRatio;
+                    outputAudio.playbackRate = selectedSpeed * durationCompensation;
+                }
             });
         });
 
@@ -282,8 +288,19 @@
                 console.log('✅ Received processed audio blob:', blob.size, 'bytes');
                 const url = URL.createObjectURL(blob);
                 outputAudio.src = url;
+                
+                // Calculate playback rate to compensate for duration change from resampling
+                // When pitch is lowered, audio becomes longer, so we speed up playback
+                const semitones = parseFloat(semitonesSlider.value);
+                const pitchRatio = Math.pow(2, semitones / 12.0);
+                const durationCompensation = 1.0 / pitchRatio; // Inverse to restore original duration
+                
                 const selectedSpeed = parseFloat(document.querySelector('input[name="speed"]:checked').value);
-                outputAudio.playbackRate = selectedSpeed;
+                const finalPlaybackRate = selectedSpeed * durationCompensation;
+                outputAudio.playbackRate = finalPlaybackRate;
+                
+                console.log(`🎵 Semitones: ${semitones}, Pitch ratio: ${pitchRatio.toFixed(4)}, Duration compensation: ${durationCompensation.toFixed(4)}, Final playback rate: ${finalPlaybackRate.toFixed(4)}`);
+                
                 setState('processed');
                 console.log('🎵 Attempting to play audio...');
                 try {
