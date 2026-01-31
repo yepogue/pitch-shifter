@@ -83,6 +83,9 @@
         let mediaRecorder;
         let audioChunks = [];
         let currentAudioBlob = null;
+        let recordingTimeout = null;
+        const MAX_RECORDING_SECONDS = 30;
+        const MAX_FILE_SIZE_MB = 1;
 
         const recordBtn = document.getElementById('recordBtn');
         const recordLabel = document.getElementById('recordLabel');
@@ -124,6 +127,10 @@
             console.log('🔴 Record button clicked');
             if (mediaRecorder && mediaRecorder.state === 'recording') {
                 console.log('⏹️ Stopping recording...');
+                if (recordingTimeout) {
+                    clearTimeout(recordingTimeout);
+                    recordingTimeout = null;
+                }
                 mediaRecorder.stop();
                 return;
             }
@@ -159,6 +166,18 @@
                     }
                     currentAudioBlob = blob;
                     console.log('✅ Audio blob ready:', currentAudioBlob.size, 'bytes');
+                    
+                    // Check file size before uploading
+                    const sizeMB = currentAudioBlob.size / (1024 * 1024);
+                    console.log('📏 File size:', sizeMB.toFixed(2), 'MB');
+                    if (sizeMB > MAX_FILE_SIZE_MB) {
+                        console.error('❌ File too large:', sizeMB.toFixed(2), 'MB (max:', MAX_FILE_SIZE_MB, 'MB)');
+                        showStatus('error', `录音文件过大 (${sizeMB.toFixed(1)}MB)，请录制更短的音频（少于${MAX_RECORDING_SECONDS}秒）`);
+                        stream.getTracks().forEach(track => track.stop());
+                        setState('idle');
+                        return;
+                    }
+                    
                     stream.getTracks().forEach(track => {
                         console.log('🛑 Stopping track:', track.kind);
                         track.stop();
@@ -169,7 +188,15 @@
                 mediaRecorder.start();
                 console.log('▶️ Recording started');
                 setState('recording');
-                showStatus('info', '正在录音，再次点击即可停止并转化');
+                showStatus('info', `正在录音（最长${MAX_RECORDING_SECONDS}秒），再次点击即可停止并转化`);
+                
+                // Auto-stop after MAX_RECORDING_SECONDS
+                recordingTimeout = setTimeout(() => {
+                    console.log(`⏱️ Auto-stopping recording after ${MAX_RECORDING_SECONDS} seconds`);
+                    if (mediaRecorder && mediaRecorder.state === 'recording') {
+                        mediaRecorder.stop();
+                    }
+                }, MAX_RECORDING_SECONDS * 1000);
             } catch (err) {
                 console.error('❌ Microphone error:', err);
                 showStatus('error', '无法访问麦克风: ' + err.message);
@@ -266,10 +293,23 @@
         }
 
         async function convertWebmToWav(webmBlob) {
-            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            // Use 16kHz sample rate to match server processing and reduce file size
+            const audioContext = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 16000 });
             const arrayBuffer = await webmBlob.arrayBuffer();
             const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
-            const wavBuffer = audioBufferToWav(audioBuffer);
+            
+            // Convert to mono if stereo (further reduces size)
+            let monoBuffer = audioBuffer;
+            if (audioBuffer.numberOfChannels > 1) {
+                const offlineContext = new OfflineAudioContext(1, audioBuffer.length, 16000);
+                const source = offlineContext.createBufferSource();
+                source.buffer = audioBuffer;
+                source.connect(offlineContext.destination);
+                source.start(0);
+                monoBuffer = await offlineContext.startRendering();
+            }
+            
+            const wavBuffer = audioBufferToWav(monoBuffer);
             return new Blob([wavBuffer], { type: 'audio/wav' });
         }
 
