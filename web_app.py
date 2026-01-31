@@ -50,26 +50,30 @@ def pitch_shift_audio(input_path, semitones):
     input_path = Path(input_path)
     
     logger.info(f"🎵 Starting pitch shift: {input_path.name}, semitones={semitones}")
-    start_time = time.time()
+    overall_start = time.time()
     
     # Load audio with lower sample rate to save memory (16kHz is good for voice)
     # This significantly reduces memory usage while maintaining speech quality
     logger.info("📂 Loading audio file...")
+    load_start = time.time()
     y, sr = librosa.load(str(input_path), sr=16000, res_type='fft', mono=True)
-    logger.info(f"✓ Audio loaded: {len(y)} samples, sample rate={sr}Hz, duration={len(y)/sr:.2f}s")
+    load_time = time.time() - load_start
+    logger.info(f"✓ Audio loaded in {load_time:.2f}s: {len(y)} samples, sample rate={sr}Hz, duration={len(y)/sr:.2f}s")
     
     # Apply pitch shift with very aggressive memory optimization
     logger.info(f"🔄 Applying pitch shift ({semitones} semitones)...")
+    shift_start = time.time()
     y_shifted = librosa.effects.pitch_shift(
         y=y,
         sr=sr,
         n_steps=semitones,
-        bins_per_octave=12,
+        bins_per_octane=12,
         n_fft=512,  # Even smaller FFT for lower memory
         hop_length=128,  # Smaller hop for lower memory
         res_type='fft'  # Use FFT-based resampling (no external deps needed)
     )
-    logger.info("✓ Pitch shift complete")
+    shift_time = time.time() - shift_start
+    logger.info(f"✓ Pitch shift complete in {shift_time:.2f}s")
     
     # Free original audio from memory immediately
     del y
@@ -78,10 +82,13 @@ def pitch_shift_audio(input_path, semitones):
     # Save output
     output_path = Path(tempfile.gettempdir()) / f"pitched_{input_path.stem}.wav"
     logger.info(f"💾 Saving to: {output_path}")
+    save_start = time.time()
     sf.write(str(output_path), y_shifted, sr)
+    save_time = time.time() - save_start
     
-    elapsed = time.time() - start_time
-    logger.info(f"✅ Processing complete in {elapsed:.2f}s, output size: {output_path.stat().st_size} bytes")
+    total_time = time.time() - overall_start
+    logger.info(f"✅ Processing complete - Load: {load_time:.2f}s, Shift: {shift_time:.2f}s, Save: {save_time:.2f}s, Total: {total_time:.2f}s")
+    logger.info(f"📦 Output size: {output_path.stat().st_size} bytes")
     
     # Clean up
     del y_shifted
@@ -93,7 +100,7 @@ def pitch_shift_audio(input_path, semitones):
 @app.route('/')
 def index():
     """Render main page with optional cache-busting version query."""
-    version = request.args.get('v', '20260131-7')
+    version = request.args.get('v', '20260131-8')
     response = app.make_response(render_template('index.html', version=version))
     # Extra cache busting for HTML
     response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'

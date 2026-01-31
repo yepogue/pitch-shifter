@@ -225,6 +225,7 @@
             formData.append('semitones', semitonesSlider.value);
             
             console.log('📤 Sending POST request to /process');
+            const requestStartTime = performance.now();
             try {
                 // Longer timeout for cold starts (service wakes up in ~60s)
                 const controller = new AbortController();
@@ -236,7 +237,10 @@
                     signal: controller.signal
                 });
                 clearTimeout(timeoutId);
+                const requestEndTime = performance.now();
+                const requestDuration = ((requestEndTime - requestStartTime) / 1000).toFixed(2);
                 console.log('📥 Response status:', response.status, response.statusText);
+                console.log('⏱️ Total request time:', requestDuration, 'seconds');
                 
                 if (!response.ok) {
                     const contentType = response.headers.get('content-type');
