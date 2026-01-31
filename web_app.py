@@ -3,7 +3,7 @@
 语音降调助听器网页界面
 帮助老年人通过降低音调来更清晰地听到对话
 直接从麦克风录音
-Version: 20260131-20 (Librosa phase vocoder with extreme optimization: 8kHz + minimal FFT)
+Version: 20260131-21 (Scipy polyphase resampling - fast with built-in anti-aliasing)
 """
 
 import os
@@ -24,14 +24,13 @@ logger = logging.getLogger(__name__)
 # Pre-load audio libraries at startup to speed up first request
 logger.info("🔧 Pre-loading audio libraries...")
 import_start = time.time()
-import librosa
 import soundfile as sf
 import numpy as np
 from scipy import signal
 import gc
 logger.info(f"✅ Libraries loaded in {time.time() - import_start:.2f}s")
 
-VERSION = "20260131-20"
+VERSION = "20260131-21"
 
 app = Flask(__name__)
 app.config['MAX_CONTENT_LENGTH'] = 10 * 1024 * 1024  # Reduced to 10MB for memory constraints
@@ -42,7 +41,7 @@ app.jinja_env.auto_reload = True
 
 def pitch_shift_audio(input_path, semitones):
     """
-    Change audio pitch using librosa with extreme optimization for low-resource environments
+    Change audio pitch using scipy polyphase resampling (fast, reasonable quality)
     
     Args:
         input_path: Input audio file path
@@ -56,26 +55,30 @@ def pitch_shift_audio(input_path, semitones):
     logger.info(f"🎵 Starting pitch shift: {input_path.name}, semitones={semitones}")
     overall_start = time.time()
     
-    # Load audio at very low sample rate for voice (8kHz is enough for speech)
+    # Load audio
     logger.info("📂 Loading audio file...")
     load_start = time.time()
-    y, sr = librosa.load(str(input_path), sr=8000, mono=True)
+    y, sr = sf.read(str(input_path))
+    if y.ndim > 1:
+        y = y.mean(axis=1)  # Convert to mono
     load_time = time.time() - load_start
     logger.info(f"✓ Audio loaded in {load_time:.2f}s: {len(y)} samples, sample rate={sr}Hz, duration={len(y)/sr:.2f}s")
     
-    # Apply pitch shift with MINIMAL parameters for speed
+    # Apply pitch shift using polyphase resampling (good balance of speed and quality)
     logger.info(f"🔄 Applying pitch shift ({semitones} semitones)...")
     shift_start = time.time()
     
-    # Ultra-aggressive optimization for speed
-    y_shifted = librosa.effects.pitch_shift(
-        y=y,
-        sr=sr,
-        n_steps=semitones,
-        bins_per_octave=12,
-        n_fft=256,      # Absolute minimum FFT size
-        hop_length=64   # Minimum hop for speed
-    )
+    # Calculate pitch ratio: 2^(semitones/12)
+    pitch_ratio = 2 ** (semitones / 12.0)
+    
+    # Use resample_poly for better quality than basic resample
+    # Convert ratio to up/down integers
+    ratio_factor = 1000
+    up = int(ratio_factor)
+    down = int(ratio_factor * pitch_ratio)
+    
+    # Polyphase resampling with built-in anti-aliasing
+    y_shifted = signal.resample_poly(y, up, down)
     
     shift_time = time.time() - shift_start
     logger.info(f"✓ Pitch shift complete in {shift_time:.2f}s")
