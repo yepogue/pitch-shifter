@@ -123,6 +123,23 @@
             });
         });
 
+        // Pre-warm the service on page load to avoid cold start delays
+        async function warmUpService() {
+            try {
+                console.log('🔥 Warming up service...');
+                const warmupResponse = await fetch('/', { 
+                    method: 'HEAD',
+                    signal: AbortSignal.timeout(10000) 
+                });
+                console.log('✅ Service is ready');
+            } catch (err) {
+                console.log('⚠️ Warmup request failed (service may be sleeping):', err.message);
+            }
+        }
+        
+        // Warm up service when page loads
+        warmUpService();
+
         recordBtn.addEventListener('click', async () => {
             console.log('🔴 Record button clicked');
             if (mediaRecorder && mediaRecorder.state === 'recording') {
@@ -215,14 +232,23 @@
             console.log('🎚️ Semitones:', semitonesSlider.value);
             
             setState('processing');
-            showStatus('processing', '正在转化并降低声调...');
+            showStatus('processing', '正在转化并降低声调...（首次使用可能需要等待1分钟唤醒服务）');
             const formData = new FormData();
             formData.append('audio', currentAudioBlob, 'recording.wav');
             formData.append('semitones', semitonesSlider.value);
             
             console.log('📤 Sending POST request to /process');
             try {
-                const response = await fetch('/process', { method: 'POST', body: formData });
+                // Longer timeout for cold starts (service wakes up in ~60s)
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 120000); // 120 second timeout
+                
+                const response = await fetch('/process', { 
+                    method: 'POST', 
+                    body: formData,
+                    signal: controller.signal
+                });
+                clearTimeout(timeoutId);
                 console.log('📥 Response status:', response.status, response.statusText);
                 
                 if (!response.ok) {
@@ -256,7 +282,13 @@
                 }
             } catch (err) {
                 console.error('❌ Error in processAudio:', err);
-                showStatus('error', '错误: ' + err.message);
+                if (error.name === 'AbortError') {
+                    showStatus('error', '处理超时 - 服务可能正在启动，请稍后重试');
+                } else if (error.message.includes('504') || error.message.includes('502')) {
+                    showStatus('error', '服务正在启动中，请等待30秒后重试');
+                } else {
+                    showStatus('error', '处理失败: ' + error.message);
+                }
                 setState('idle');
             }
         }
