@@ -207,6 +207,29 @@
             }
         });
 
+        async function wakeUpService() {
+            console.log('🔥 Waking up service...');
+            const wakeStart = performance.now();
+            try {
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 15000); // 15s timeout for wake-up
+                
+                await fetch('/', { 
+                    method: 'HEAD',
+                    signal: controller.signal
+                });
+                clearTimeout(timeoutId);
+                
+                const wakeTime = ((performance.now() - wakeStart) / 1000).toFixed(2);
+                console.log(`✅ Service awake in ${wakeTime}s`);
+                return true;
+            } catch (error) {
+                const wakeTime = ((performance.now() - wakeStart) / 1000).toFixed(2);
+                console.log(`⚠️ Wake-up attempt took ${wakeTime}s:`, error.message);
+                return false; // Continue anyway, might still work
+            }
+        }
+
         async function processAudio() {
             if (!currentAudioBlob) {
                 console.error('❌ No audio blob to process');
@@ -218,15 +241,18 @@
             console.log('📊 Blob type:', currentAudioBlob.type);
             console.log('🎚️ Semitones:', semitonesSlider.value);
             
+            // Wake up the service first if it's asleep (handles cold starts)
+            await wakeUpService();
+            
             setState('processing');
-            showStatus('processing', '正在转化并降低声调...（首次使用可能需要等待1分钟唤醒服务）');
+            showStatus('processing', '正在转化并降低声调...');
             const formData = new FormData();
             formData.append('audio', currentAudioBlob, 'recording.wav');
             formData.append('semitones', semitonesSlider.value);
             
-            console.log('📤 Sending POST request to /process');
-            const requestStartTime = performance.now();
-            try {
+            consoleService should be awake now, so use shorter timeout (30s should be plenty)
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 3
                 // Longer timeout for cold starts (service wakes up in ~60s)
                 const controller = new AbortController();
                 const timeoutId = setTimeout(() => controller.abort(), 120000); // 120 second timeout
